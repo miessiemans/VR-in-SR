@@ -31,7 +31,7 @@ def aberrate_3d(dirs, v, c):
 
 
 def evenly_spaced_directions(n_theta=30, n_phi=60):
-    theta = np.linspace(0, np.pi, n_theta)        # polar angle
+    theta = np.linspace(0, np.pi, n_theta)        
     phi = np.linspace(0, 2*np.pi, n_phi, endpoint=False)
 
     theta, phi = np.meshgrid(theta, phi, indexing='ij')
@@ -49,13 +49,13 @@ def project_points(points, f, center):
     y = points[:, 1]
     z = points[:, 2]
 
-    # convention to avoid points behind the observer 
+ 
     mask = x > 1e-3
     x, y, z = x[mask], y[mask], z[mask]
     
     
     X = center[0] + f * (y / x)  
-    Y = center[1] - f * (z / x)  ## minus because pygame y-axis
+    Y = center[1] - f * (z / x)  
 
     return np.column_stack((X, Y)), mask
 
@@ -79,7 +79,7 @@ def colour(I):
     
 
 
-# Rays
+
 N = 40
 dirs = evenly_spaced_directions(N)
 
@@ -109,3 +109,4 @@ while run:
     pygame.display.flip()
 
 pygame.quit()
+
