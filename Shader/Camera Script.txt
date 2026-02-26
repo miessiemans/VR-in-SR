@@ -1,0 +1,173 @@
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+
+public class RelativisticCamera : MonoBehaviour
+{
+    [Header("Movement Settings")]
+    [SerializeField] private float acceleration = 10f;
+    [SerializeField] private float maxVelocity = 0.99f; // near c
+    
+    [Header("Physics Constants")]
+    private const float SPEED_OF_LIGHT = 300000000f; // c
+    
+    [Header("Current State")]
+    [SerializeField] private Vector3 velocity = Vector3.zero;
+    [SerializeField] private float frac = 0f; // |v|/c
+    
+    private Material relativisticMaterial;
+    private Vector2 mouseDelta;
+    private bool isLooking = false;
+    
+    void Start()
+    {
+        // Find and setup the relativistic material
+        Camera cam = GetComponent<Camera>();
+        if (cam != null)
+        {
+            // Create a post-process material
+            Shader shader = Shader.Find("Custom/RelativisticEffects");
+            if (shader != null)
+            {
+                relativisticMaterial = new Material(shader);
+            }
+            else
+            {
+                Debug.LogWarning("RelativisticEffects shader not found! Make sure the shader is in your project.");
+            }
+        }
+    }
+    
+    void Update()
+    {
+        HandleInput();
+        UpdateVelocity();
+        UpdateShaderParameters();
+    }
+    
+    void HandleInput()
+    {
+        Vector3 input = Vector3.zero;
+        
+        // movement input
+        Keyboard keyboard = Keyboard.current;
+        Mouse mouse = Mouse.current;
+        
+        if (keyboard != null)
+        {
+            if (keyboard.wKey.isPressed) input += transform.forward;
+            if (keyboard.sKey.isPressed) input -= transform.forward;
+            if (keyboard.aKey.isPressed) input -= transform.right;
+            if (keyboard.dKey.isPressed) input += transform.right;
+            if (keyboard.spaceKey.isPressed) input += transform.up;
+            if (keyboard.leftCtrlKey.isPressed) input -= transform.up;
+        }
+        
+        // Mouse look
+        if (mouse != null)
+        {
+            // Check for right mouse button
+            if (mouse.rightButton.isPressed)
+            {
+                if (!isLooking)
+                {
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                    isLooking = true;
+                }
+                
+                Vector2 delta = mouse.delta.ReadValue();
+                float mouseX = delta.x * 0.2f;
+                float mouseY = delta.y * 0.2f;
+                
+                transform.Rotate(Vector3.up, mouseX, Space.World);
+                transform.Rotate(Vector3.right, -mouseY, Space.Self);
+            }
+            else
+            {
+                if (isLooking)
+                {
+                    Cursor.lockState = CursorLockMode.None;
+                    Cursor.visible = true;
+                    isLooking = false;
+                }
+            }
+        }
+        
+        // Acceleration
+        if (input.magnitude > 0)
+        {
+            velocity += input.normalized * acceleration * Time.deltaTime;
+        }
+        else
+        {
+            // Deceleration when no input
+            velocity = Vector3.Lerp(velocity, Vector3.zero, Time.deltaTime * 2f);
+        }
+    }
+    
+    void UpdateVelocity()
+    {
+        // Enforce velocity to max speed (fraction of c)
+        if (velocity.magnitude > maxVelocity)
+        {
+            velocity = velocity.normalized * maxVelocity;
+        }
+        
+        frac = velocity.magnitude;
+        
+        // Update position
+        transform.position += velocity * Time.deltaTime * 100f; // Scale for visible movement
+    }
+    
+    void UpdateShaderParameters()
+    {
+        if (relativisticMaterial != null)
+        {
+            // Calculate beta
+            float beta = frac;
+            
+            // Calculate Lorentz factor 
+            float gamma = 1f / Mathf.Sqrt(1f - beta * beta);
+            
+            // Normalized velocity direction
+            Vector3 velocityDir = velocity.magnitude > 0.001f ? velocity.normalized : Vector3.forward;
+            
+            // Pass to shader
+            relativisticMaterial.SetFloat("_Beta", beta);
+            relativisticMaterial.SetFloat("_Gamma", gamma);
+            relativisticMaterial.SetVector("_VelocityDir", velocityDir);
+        }
+    }
+    
+    void OnRenderImage(RenderTexture source, RenderTexture destination)
+    {
+        if (relativisticMaterial != null && frac > 0.01f)
+        {
+            Graphics.Blit(source, destination, relativisticMaterial);
+        }
+        else
+        {
+            Graphics.Blit(source, destination);
+        }
+    }
+    
+    void OnGUI()
+    {
+        // Display current speed
+        GUIStyle style = new GUIStyle(GUI.skin.label);
+        style.fontSize = 20;
+        style.normal.textColor = Color.white;
+        
+        GUI.Label(new Rect(10, 10, 300, 30), $"Speed: {frac:F3}c", style);
+        GUI.Label(new Rect(10, 40, 300, 30), $"Velocity: {velocity}", style);
+        GUI.Label(new Rect(10, 70, 400, 30), "Controls: WASD + Space/Ctrl to move, Right-click + Mouse to look", style);
+    }
+    
+    void OnDestroy()
+    {
+        // Clean up cursor state
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+}
