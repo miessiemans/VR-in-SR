@@ -1,0 +1,148 @@
+Shader "Custom/RelativisticURP"
+{
+    Properties
+    {
+        _MainTex ("Texture", 2D) = "white" {}
+    }
+    
+    SubShader
+    {
+        Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
+        
+        Cull Off ZWrite Off ZTest Always
+        
+        Pass
+        {
+            Name "RelativisticEffect"
+            
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+            
+            float _Beta;
+            float _Gamma;
+            float3 _VelocityDir;
+            
+            float3 ApplyAberration(float3 dir, float3 velocity, float beta)
+            {
+                dir = normalize(dir);
+                velocity = normalize(velocity);
+                
+                float cosTheta = dot(dir, velocity);
+                float denominator = 1.0 - beta * cosTheta;
+                
+                if (abs(denominator) < 0.001)
+                    return dir;
+                
+                float cosThetaPrime = (cosTheta - beta) / denominator;
+                cosThetaPrime = clamp(cosThetaPrime, -0.9999, 0.9999);
+                
+                float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+                float sinThetaPrime = sqrt(1.0 - cosThetaPrime * cosThetaPrime);
+                
+                float3 parallel = cosTheta * velocity;
+                float3 perpendicular = dir - parallel;
+                
+                float perpLength = length(perpendicular);
+                if (perpLength < 0.001)
+                {
+                    perpendicular = abs(velocity.y) < 0.9 ? 
+                                   cross(velocity, float3(0, 1, 0)) : 
+                                   cross(velocity, float3(1, 0, 0));
+                    perpLength = length(perpendicular);
+                }
+                perpendicular = perpendicular / perpLength;
+                
+                float3 result = cosThetaPrime * velocity + sinThetaPrime * perpendicular;
+                return normalize(result);
+            }
+            
+            float3 apply_doppler(float3 color, float3 dir, float3 velocity, float beta)
+            {
+                float cosTheta = dot(normalize(dir), normalize(velocity));
+                float factor = 1.0 / ((1.0 - beta * cosTheta) * sqrt(1.0 - beta * beta));
+                
+                if (factor > 1.0)
+                {
+                    float shift = (factor - 1.0) * beta * 3.0;
+                    color.b = lerp(color.b, 1.0, shift);
+                    color.r = lerp(color.r, color.r * 0.5, shift);
+                }
+                else
+                {
+                    float shift = (1.0 - factor) * beta * 3.0;
+                    color.r = lerp(color.r, 1.0, shift);
+                    color.b = lerp(color.b, color.b * 0.5, shift);
+                }
+                
+                return saturate(color);
+            }
+            
+            float3 UVToViewDir(float2 uv)
+            {
+                float2 ndc = uv * 2.0 - 1.0;
+                float fov = radians(60.0);
+                float aspect = _ScreenParams.x / _ScreenParams.y;
+                
+                float3 viewDir;
+                viewDir.x = ndc.x * tan(fov * 0.5) * aspect;
+                viewDir.y = ndc.y * tan(fov * 0.5);
+                viewDir.z = 1.0;
+                
+                return normalize(viewDir);
+            }
+            
+            float2 ViewDirToUV(float3 viewDir)
+            {
+                float fov = radians(60.0);
+                float aspect = _ScreenParams.x / _ScreenParams.y;
+                
+                if (viewDir.z < 0.01)
+                    viewDir.z = 0.01;
+                
+                float2 ndc;
+                ndc.x = viewDir.x / (viewDir.z * tan(fov * 0.5) * aspect);
+                ndc.y = viewDir.y / (viewDir.z * tan(fov * 0.5));
+                
+                return ndc * 0.5 + 0.5;
+            }
+            
+            half4 Frag(Varyings input) : SV_Target
+            {
+                float2 uv = input.texcoord;
+                
+                if (_Beta < 0.001)
+                {
+                    return SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, uv);
+                }
+                
+                float3 viewDir = UVToViewDir(uv);
+                float3 aberratedDir = ApplyAberration(viewDir, _VelocityDir, _Beta);
+                float2 newUV = ViewDirToUV(aberratedDir);
+                
+                half4 col;
+                if (newUV.x >= 0.0 && newUV.x <= 1.0 && newUV.y >= 0.0 && newUV.y <= 1.0)
+                {
+                    col = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, newUV);
+                }
+                else
+                {
+                    col = SAMPLE_TEXTURE2D(_BlitTexture, sampler_LinearClamp, frac(newUV));
+                    col.rgb *= 0.3;
+                }
+                
+                col.rgb = apply_doppler(col.rgb, viewDir, _VelocityDir, _Beta);
+                
+                float2 vignetteUV = uv * 2.0 - 1.0;
+                float vignette = 1.0 - _Beta * 0.4 * dot(vignetteUV, vignetteUV);
+                col.rgb *= vignette;
+                
+                return col;
+            }
+            ENDHLSL
+        }
+    }
+}

@@ -6,11 +6,13 @@
 [Ll]ogs/
 UserSettings/
 MemoryCaptures/
-Recordings/
 
+.vscode/
 .vs/
 .idea/
+
 *.csproj
+*.unityproj
 *.sln
 *.suo
 *.tmp
@@ -24,10 +26,7 @@ Recordings/
 *.opendb
 *.VC.db
 
-Assets/AssetStoreTools*
-
 .DS_Store
 Thumbs.db
-
-.vscode/
+desktop.ini
 *.slnx
