@@ -98,3 +98,88 @@ Thames_Final_Project/
 ├── Packages/
 │
 └── ProjectSettings/
+
+> **IMPORTANT**
+>
+> Anyone uploading scripts for the relativistic effects must place them inside:
+>
+> `Assets/Scripts/Relativistic_Effects/`
+>
+> If this folder does not already exist, create it and upload all relativistic scripts there.
+>
+> Do **not** upload these scripts into random folders.
+
+---
+
+# 5. WARNING – LOOPTELEPORT IS CURRENTLY LINKED TO THE MAIN CAMERA
+
+> **CRITICAL**
+>
+> The current `LoopTeleport.cs` setup uses the **Main Camera** as the player/user object.
+>
+> This is extremely important.
+>
+> If you are using a different player object instead of the Main Camera, you must change the assigned player object in the `LoopTeleport` component inside Unity.
+>
+> In the Inspector, the player reference is currently assigned to the **Main Camera**.
+>
+> If you are using your own player object, replace that reference with your own object.
+>
+> If you do not change this, the looping system may not work correctly.
+
+---
+
+# 6. WARNING – `AutoMove.cs` MAY CLASH WITH YOUR OWN MOVEMENT SCRIPTS
+
+> **CRITICAL**
+>
+> `AutoMove.cs` currently moves the **camera** forward automatically.
+>
+> This means that if you add your own player movement script while `AutoMove.cs` is still enabled, the two scripts may conflict with each other.
+
+## What to do
+
+### If you are using your own movement/player controller
+- Disable or untick `AutoMove.cs` in the Inspector
+
+### If you are still using the Main Camera as the moving object
+- You may keep `AutoMove.cs` enabled only if that is intentional
+
+### If you are not using the Main Camera as the player object
+- Go to the `LoopTeleport` component
+- Find the assigned player/user reference
+- Replace **Main Camera** with your own player object
+
+This is extremely important for correct testing.
+
+---
+
+# 7. Important scene note
+
+You may notice a **large sphere** in the scene.
+
+This is intentional.
+
+The river model/environment is placed inside it as part of the scene setup and background system.
+
+So if you see a large sphere surrounding the environment, that is expected and not necessarily a mistake.
+
+---
+
+# 8. How to use this project on your own PC
+
+## Recommended method
+
+This project should be opened as a full Unity project.
+
+### Steps
+1. Clone or download the repository from GitHub
+2. Make sure the correct Unity version is installed
+3. Open **Unity Hub**
+4. Click **Add project** or **Open**
+5. Select the folder that contains:
+   - `Assets`
+   - `Packages`
+   - `ProjectSettings`
+6. Open the project in Unity
+7. Open
