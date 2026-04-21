@@ -99,43 +99,51 @@ Thames_Final_Project/
 │
 └── ProjectSettings/
 ```
-> **IMPORTANT**
->
-> Anyone uploading scripts for the relativistic effects must place them inside:
+---
+
+# 🚨 WARNING – FOR ANYONE ADDING RELATIVISTIC EFFECTS 🚨
+
+> [!IMPORTANT]
+> Anyone uploading scripts for the relativistic effects **must place them inside**:
 >
 > `Assets/Scripts/Relativistic_Effects/`
 >
-> If this folder does not already exist, create it and upload all relativistic scripts there.
+> If this folder does not already exist, **create it first** and then upload all relativistic scripts there.
 >
-> Do **not** upload these scripts into random folders.
+> **Do not** upload these scripts into random folders.
 
 ---
 
-# 5. WARNING – LOOPTELEPORT IS CURRENTLY LINKED TO THE MAIN CAMERA
+# 🚨 WARNING – `LoopTeleport.cs` IS CURRENTLY LINKED TO THE MAIN CAMERA 🚨
 
-> **CRITICAL**
->
+> [!WARNING]
 > The current `LoopTeleport.cs` setup uses the **Main Camera** as the player/user object.
 >
 > This is extremely important.
->
-> If you are using a different player object instead of the Main Camera, you must change the assigned player object in the `LoopTeleport` component inside Unity.
->
-> In the Inspector, the player reference is currently assigned to the **Main Camera**.
->
-> If you are using your own player object, replace that reference with your own object.
->
-> If you do not change this, the looping system may not work correctly.
+
+## If you are using the Main Camera as the player
+You can leave this as it is.
+
+## If you are using a different player object
+You **must** change the assigned player object in the `LoopTeleport` component inside Unity.
+
+### What to check
+- Open the object that has the `LoopTeleport` component
+- In the Inspector, find the assigned player/user reference
+- It is currently assigned to the **Main Camera**
+- Replace that reference with **your own player object**
+
+> [!CAUTION]
+> If you do not change this, the loop/teleport system may not work correctly.
 
 ---
 
-# 6. WARNING – `AutoMove.cs` MAY CLASH WITH YOUR OWN MOVEMENT SCRIPTS
+# 🚨 WARNING – `AutoMove.cs` MAY CLASH WITH YOUR OWN MOVEMENT SCRIPTS 🚨
 
-> **CRITICAL**
->
+> [!WARNING]
 > `AutoMove.cs` currently moves the **camera** forward automatically.
 >
-> This means that if you add your own player movement script while `AutoMove.cs` is still enabled, the two scripts may conflict with each other.
+> If you add your own movement/controller script while `AutoMove.cs` is still enabled, the two scripts may conflict with each other.
 
 ## What to do
 
@@ -150,27 +158,29 @@ Thames_Final_Project/
 - Find the assigned player/user reference
 - Replace **Main Camera** with your own player object
 
-This is extremely important for correct testing.
+> [!CAUTION]
+> This is a critical step before testing.
 
 ---
 
-# 7. Important scene note
+# 🌐 Important Scene Note
 
 You may notice a **large sphere** in the scene.
 
 This is intentional.
 
-The river model/environment is placed inside it as part of the scene setup and background system.
+The river/environment setup is placed inside it as part of the background / surrounding scene structure.
 
-So if you see a large sphere surrounding the environment, that is expected and not necessarily a mistake.
+> [!NOTE]
+> If you see a large sphere around the river environment, that is expected and not necessarily a mistake.
 
 ---
 
-# 8. How to use this project on your own PC
+# 💻 How to Use This Project on Your Own PC
 
 ## Recommended method
 
-This project should be opened as a full Unity project.
+This project should be opened as a **full Unity project**.
 
 ### Steps
 1. Clone or download the repository from GitHub
@@ -182,4 +192,33 @@ This project should be opened as a full Unity project.
    - `Packages`
    - `ProjectSettings`
 6. Open the project in Unity
-7. Open
+7. Open the main scene:
+   - `Assets/Scenes/MainScene.unity`
+
+> [!IMPORTANT]
+> Do **not** create a new empty Unity project and drag files in randomly unless absolutely necessary.
+
+---
+
+# 📦 If You Need to Import This Into Another Unity Project
+
+This is **not the preferred method**, but if it becomes necessary, import at minimum:
+
+- `Assets`
+- `Packages`
+- `ProjectSettings`
+
+> [!WARNING]
+> If only selected scene files or scripts are moved without the correct dependencies, materials, settings, references, or scripts may break.
+
+---
+
+# 🔄 How to Upload Your Own Changes Safely
+
+If you make changes to the project, use GitHub properly so the main project is not overwritten by mistake.
+
+## Basic workflow
+
+### 1. Pull the latest changes
+```bash
+git pull origin main
