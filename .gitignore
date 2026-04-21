@@ -7,11 +7,9 @@
 UserSettings/
 MemoryCaptures/
 
-ExportedObj/
-.consulo/
-.idea/
 .vscode/
-.gradle/
+.vs/
+.idea/
 
 *.csproj
 *.unityproj
@@ -30,3 +28,5 @@ ExportedObj/
 
 .DS_Store
 Thumbs.db
+desktop.ini
+*.slnx
