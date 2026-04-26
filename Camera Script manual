@@ -1,0 +1,236 @@
+/*using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
+
+public class RelativisticCameraURP : MonoBehaviour
+{
+    [Header("Movement Settings")]
+    [SerializeField] private float acceleration = 0.05f;
+    [SerializeField] private float deceleration = 0.0f;
+    [SerializeField] private float movementScale = 0f;
+
+    [Header("Look Settings")]
+    [SerializeField] private float lookSensitivity = 2f;
+
+    [Header("FOV Settings")]
+    [SerializeField] private float displayFOV = 90f;
+
+    [Header("FOV Settings")]
+    [SerializeField] private float currentSpeed = 0.5f;
+
+    [Header("360 Capture")]
+    [SerializeField] private int cubemapSize = 1024;
+
+    private readonly float[] velocityPresets = new float[]
+    {
+        0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f
+    };
+
+
+    private float? targetSpeed = null;
+    private bool isLooking = false;
+
+
+    private Camera cam;
+    private Camera captureCamera;
+    private RenderTexture cubemapRT;
+    private RenderTexture equirectRT;
+
+    public float SpeedFraction => Mathf.Abs(currentSpeed);
+    public Vector3 VelocityDirection => currentSpeed >= 0 ? Vector3.forward : Vector3.back;
+    public float DisplayFOV => displayFOV;
+    public RenderTexture EquirectTexture => equirectRT;
+
+    void Start()
+    {
+        cam = GetComponent<Camera>();
+        if (cam == null)
+            cam = Camera.main;
+        cam.fieldOfView = displayFOV;
+
+        GameObject captureGO = new GameObject("CubemapCaptureCamera");
+        captureGO.transform.SetParent(transform);
+        captureGO.transform.localPosition = Vector3.zero;
+        captureCamera = captureGO.AddComponent<Camera>();
+        captureCamera.CopyFrom(cam);
+        captureCamera.enabled = false;
+
+        cubemapRT = new RenderTexture(cubemapSize, cubemapSize, 16);
+        cubemapRT.dimension = UnityEngine.Rendering.TextureDimension.Cube;
+        cubemapRT.Create();
+
+        equirectRT = new RenderTexture(cubemapSize * 2, cubemapSize, 0);
+        equirectRT.Create();
+
+        // Pre-fill on start so shader never samples black
+        captureCamera.transform.position = transform.position;
+        captureCamera.transform.rotation = Quaternion.LookRotation(VelocityDirection, Vector3.up);
+        captureCamera.RenderToCubemap(cubemapRT);
+        cubemapRT.ConvertToEquirect(equirectRT, Camera.MonoOrStereoscopicEye.Mono);
+    }
+
+    void Update()
+    {
+
+        HandleLook();
+        HandleMovement();
+        ApplyMovement();
+    }
+
+    void LateUpdate()
+    {
+        captureCamera.transform.position = transform.position;
+        captureCamera.transform.rotation = Quaternion.LookRotation(VelocityDirection, Vector3.up);
+        captureCamera.RenderToCubemap(cubemapRT);
+        cubemapRT.ConvertToEquirect(equirectRT, Camera.MonoOrStereoscopicEye.Mono);
+    }
+
+    void HandleLook()
+    {
+#if ENABLE_INPUT_SYSTEM
+        Mouse mouse = Mouse.current;
+        if (mouse != null && mouse.leftButton.isPressed)
+        {
+            if (!isLooking)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                isLooking = true;
+            }
+            Vector2 delta = mouse.delta.ReadValue();
+            transform.Rotate(Vector3.up, delta.x * lookSensitivity * 0.1f, Space.World);
+            transform.Rotate(Vector3.right, -delta.y * lookSensitivity * 0.1f, Space.Self);
+        }
+        else if (isLooking)
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            isLooking = false;
+        }
+#else
+        if (Input.GetMouseButton(1))
+        {
+            transform.Rotate(Vector3.up, Input.GetAxis("Mouse X") * lookSensitivity, Space.World);
+            transform.Rotate(Vector3.right, -Input.GetAxis("Mouse Y") * lookSensitivity, Space.Self);
+        }
+#endif
+    }
+
+    void HandleMovement()
+    {
+        bool accelerating = false;
+        bool decelerating = false;
+        bool stopping = false;
+        int presetIndex = -1;
+
+#if ENABLE_INPUT_SYSTEM
+        Keyboard kb = Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.wKey.isPressed || kb.upArrowKey.isPressed)   accelerating = true;
+            if (kb.sKey.isPressed || kb.downArrowKey.isPressed) decelerating = true;
+            if (kb.spaceKey.wasPressedThisFrame)                stopping = true;
+
+            if      (kb.digit1Key.isPressed) presetIndex = 0;
+            else if (kb.digit2Key.isPressed) presetIndex = 1;
+            else if (kb.digit3Key.isPressed) presetIndex = 2;
+            else if (kb.digit4Key.isPressed) presetIndex = 3;
+            else if (kb.digit5Key.isPressed) presetIndex = 4;
+            else if (kb.digit6Key.isPressed) presetIndex = 5;
+            else if (kb.digit7Key.isPressed) presetIndex = 6;
+            else if (kb.digit8Key.isPressed) presetIndex = 7;
+            else if (kb.digit9Key.isPressed) presetIndex = 8;
+        }
+#else
+        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))   accelerating = true;
+        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) decelerating = true;
+        if (Input.GetKeyDown(KeyCode.Space))                             stopping = true;
+
+        for (int i = 0; i < 9; i++)
+        {
+            if (Input.GetKey(KeyCode.Alpha1 + i))
+            {
+                presetIndex = i;
+                break;
+            }
+        }
+#endif
+
+        if (stopping)
+        {
+            currentSpeed = 0f;
+            targetSpeed = null;
+            return;
+        }
+
+        if (accelerating || decelerating)
+            targetSpeed = null;
+
+        if (presetIndex >= 0)
+            targetSpeed = velocityPresets[presetIndex];
+
+        if (targetSpeed.HasValue)
+        {
+            float diff = targetSpeed.Value - currentSpeed;
+            float step = (diff > 0 ? acceleration : deceleration) * Time.deltaTime;
+
+            if (Mathf.Abs(diff) <= step)
+            {
+                currentSpeed = targetSpeed.Value;
+                targetSpeed = null;
+            }
+            else
+            {
+                currentSpeed += Mathf.Sign(diff) * step;
+            }
+        }
+        else if (accelerating)
+        {
+            currentSpeed += acceleration * Time.deltaTime;
+            currentSpeed = Mathf.Min(currentSpeed, 0.9999f);
+        }
+        else if (decelerating)
+        {
+            currentSpeed -= deceleration * Time.deltaTime;
+            currentSpeed = Mathf.Max(currentSpeed, 0f);
+        }
+    }
+
+    void ApplyMovement()
+    {
+        transform.position += Vector3.forward * currentSpeed * Time.deltaTime * movementScale;
+    }
+    
+    void OnGUI()
+    {
+        GUIStyle style = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 48,
+            fontStyle = FontStyle.Bold,
+            alignment = TextAnchor.MiddleCenter
+        };
+
+        float spd = Mathf.Abs(currentSpeed);
+        //if      (spd > 0.8f) style.normal.textColor = new Color(1f, 0.3f, 0.3f);
+        //else if (spd > 0.5f) style.normal.textColor = new Color(1f, 0.8f, 0.2f);
+        //else if (spd > 0.2f) style.normal.textColor = new Color(0.3f, 1f, 0.3f);
+        //else                 style.normal.textColor = new Color(0.5f, 0.5f, 0.5f);
+        style.normal.textColor = new Color(1f, 0.8f, 0.2f);
+        /*string label = targetSpeed.HasValue
+            ? $"{spd:F3}c  →  {targetSpeed.Value:F1}c"
+            : $"{spd:F3}c";
+
+
+        //GUI.Label(new Rect(0, Screen.height - 200, Screen.width, 60), label, style);
+    }
+
+    void OnDestroy()
+    {
+        if (cubemapRT != null) cubemapRT.Release();
+        if (equirectRT != null) equirectRT.Release();
+        if (cam != null) cam.fieldOfView = displayFOV;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+}*/
